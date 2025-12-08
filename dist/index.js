@@ -1,39 +1,60 @@
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
+import dotenv from "dotenv";
+import { Pool } from "pg";
+dotenv.config();
+const pool = new Pool({
+    user: process.env.PG_USER,
+    host: process.env.PG_HOST,
+    database: process.env.PG_DATABASE,
+    password: process.env.PG_PASSWORD,
+    port: 5432,
+});
+pool
+    .connect()
+    .then(() => console.log("Connected to the database"))
+    .catch((err) => console.error("Database connection error", err));
+// pool.query("SELECT NOW()", (err, res) => {
+//   if (err) {
+//     console.error("Error executing query", err.stack);
+//   } else {
+//     console.log("Query result:", res.rows[0]);
+//   }
+// });
 // A schema is a collection of type definitions (hence "typeDefs")
 // that together define the "shape" of queries that are executed against
 // your data.
-const typeDefs = `#graphql
-  # Comments in GraphQL strings (such as this one) start with the hash (#) symbol.
-
-  # This "Book" type defines the queryable fields for every book in our data source.
-  type Book {
-    title: String
-    author: String
+const typeDefs = `
+  type Staff {
+    id: Int
+    name: String
+    role: String
   }
 
-  # The "Query" type is special: it lists all of the available queries that
-  # clients can execute, along with the return type for each. In this
-  # case, the "books" query returns an array of zero or more Books (defined above).
+  type Marchents {
+    id: Int
+    email: String
+    phone: String
+    address: String
+  }
+
   type Query {
-    books: [Book]
+    staff: [Staff]
+    marchents: [Marchents]
   }
 `;
-const books = [
-    {
-        title: "The Awakening",
-        author: "Kate Chopin",
-    },
-    {
-        title: "City of Glass",
-        author: "Paul Auster",
-    },
-];
 // Resolvers define how to fetch the types defined in your schema.
 // This resolver retrieves books from the "books" array above.
 const resolvers = {
     Query: {
-        books: () => books,
+        staff: async () => {
+            const result = await pool.query("SELECT * FROM staff");
+            return result.rows;
+        },
+        marchents: async () => {
+            const result = await pool.query("SELECT * FROM marchents");
+            return result.rows;
+        },
     },
 };
 // The ApolloServer constructor requires two parameters: your schema

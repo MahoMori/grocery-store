@@ -1,42 +1,144 @@
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
+import dotenv from "dotenv";
+import { Pool } from "pg";
+
+dotenv.config();
+
+const pool = new Pool({
+  user: process.env.PG_USER,
+  host: process.env.PG_HOST,
+  database: process.env.PG_DATABASE,
+  password: process.env.PG_PASSWORD,
+  port: 5432,
+});
+
+pool
+  .connect()
+  .then(() => console.log("Connected to the database"))
+  .catch((err) => console.error("Database connection error", err));
 
 // A schema is a collection of type definitions (hence "typeDefs")
 // that together define the "shape" of queries that are executed against
 // your data.
-const typeDefs = `#graphql
-  # Comments in GraphQL strings (such as this one) start with the hash (#) symbol.
-
-  # This "Book" type defines the queryable fields for every book in our data source.
-  type Book {
-    title: String
-    author: String
+const typeDefs = `
+  type Product {
+    id: Int
+    name: String
+    selling_price: Int
+    cost_price: Int
+    num_of_stock: Int
+    small_category_id: Int
+    marchent_id: Int
+    small_category: SmallCategory
+    big_category: BigCategory
+    marchent: Marchent
+    attributes: [ProductAttribute]
   }
 
-  # The "Query" type is special: it lists all of the available queries that
-  # clients can execute, along with the return type for each. In this
-  # case, the "books" query returns an array of zero or more Books (defined above).
+  type SmallCategory {
+    id: Int
+    name: String
+    big_category_id: Int
+  }
+
+  type BigCategory {
+    id: Int
+    name: String
+  }
+
+  type ProductAttribute {
+    product_id: Int
+    attribute_key_id: Int
+    value: String
+    attribute_key: AttributeKey
+  }
+
+  type AttributeKey {
+    id: Int
+    name: String
+    data_type: String
+ }
+
+  type Staff {
+    id: Int
+    name: String
+    role: String
+  }
+
+  type Marchent {
+    id: Int
+    email: String
+    phone: String
+    address: String
+  }
+
   type Query {
-    books: [Book]
+    products: [Product]
+    staff: [Staff]
+    marchents: [Marchent]
   }
 `;
-
-const books = [
-  {
-    title: "The Awakening",
-    author: "Kate Chopin",
-  },
-  {
-    title: "City of Glass",
-    author: "Paul Auster",
-  },
-];
 
 // Resolvers define how to fetch the types defined in your schema.
 // This resolver retrieves books from the "books" array above.
 const resolvers = {
   Query: {
-    books: () => books,
+    products: async () => {
+      const result = await pool.query("SELECT * FROM products");
+      result.rows.forEach((product) => {
+        product.selling_price = parseInt(product.selling_price);
+        product.cost_price = parseInt(product.cost_price);
+        product.num_of_stock = parseInt(product.num_of_stock);
+      });
+      return result.rows;
+    },
+    staff: async () => {
+      const result = await pool.query("SELECT * FROM staff");
+      return result.rows;
+    },
+    marchents: async () => {
+      const result = await pool.query("SELECT * FROM marchents");
+      return result.rows;
+    },
+  },
+  Product: {
+    small_category: async (parent) => {
+      const result = await pool.query(
+        "SELECT * FROM small_categories WHERE id = $1",
+        [parent.small_category_id]
+      );
+      return result.rows[0];
+    },
+    big_category: async (parent) => {
+      const result = await pool.query(
+        "SELECT bc.* FROM big_categories bc JOIN small_categories sc ON bc.id = sc.big_category_id WHERE sc.id = $1",
+        [parent.small_category_id]
+      );
+      return result.rows[0];
+    },
+    marchent: async (parent) => {
+      const result = await pool.query("SELECT * FROM marchents WHERE id = $1", [
+        parent.marchent_id,
+      ]);
+      return result.rows[0];
+    },
+    attributes: async (parent) => {
+      const result = await pool.query(
+        "SELECT * FROM product_attributes WHERE product_id = $1",
+        [parent.id]
+      );
+      return result.rows;
+    },
+  },
+  ProductAttribute: {
+    attribute_key: async (parent) => {
+      const result = await pool.query(
+        "SELECT * FROM attributes_keys WHERE id = $1",
+        [parent.attribute_key_id]
+      );
+      return result.rows[0];
+    },
   },
 };
 
