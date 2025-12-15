@@ -78,6 +78,17 @@ const typeDefs = `
     staff: [Staff]
     marchents: [Marchent]
   }
+
+  type Mutation {
+    AddProduct(name: String!, selling_price: Int!, cost_price: Int!, num_of_stock: Int!, small_category_id: Int!, marchent_id: Int!): Product
+    UpdateStock(product_id: Int!, quantity: Int!): Product
+
+    AddBigCategory(name: String!): BigCategory
+    AddSmallCategory(name: String!, big_category_id: Int!): SmallCategory
+
+    AddMarchent(email: String!, phone: String!, address: String!): Marchent
+    UpdateMarchent(id: Int!, email: String, phone: String, address: String): Marchent
+  }
 `;
 
 // Resolvers define how to fetch the types defined in your schema.
@@ -140,6 +151,65 @@ const resolvers = {
       return result.rows[0];
     },
   },
+  Mutation: {
+    AddProduct: async (_, args) => {
+      const result = await pool.query(
+        "INSERT INTO products (name, selling_price, cost_price, num_of_stock, small_category_id, marchent_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+        [
+          args.name,
+          args.selling_price,
+          args.cost_price,
+          args.num_of_stock,
+          args.small_category_id,
+          args.marchent_id,
+        ]
+      );
+      return result.rows[0];
+    },
+    UpdateStock: async (_, args, context) => {
+      // Check if user is authenticated and has manager role
+      if (!context.user) {
+        throw new Error("Authentication required");
+      }
+      if (context.user.role !== "Manager") {
+        throw new Error("Only managers can add stock");
+      }
+
+      const result = await pool.query(
+        "UPDATE products SET num_of_stock = num_of_stock + $1 WHERE id = $2 RETURNING *",
+        [args.quantity, args.product_id]
+      );
+      return result.rows[0];
+    },
+    AddBigCategory: async (_, args) => {
+      const result = await pool.query(
+        "INSERT INTO big_categories (name) VALUES ($1) RETURNING *",
+        [args.name]
+      );
+      return result.rows[0];
+    },
+    AddSmallCategory: async (_, args) => {
+      const result = await pool.query(
+        "INSERT INTO small_categories (name, big_category_id) VALUES ($1, $2) RETURNING *",
+        [args.name, args.big_category_id]
+      );
+      return result.rows[0];
+    },
+    AddMarchent: async (_, args) => {
+      const result = await pool.query(
+        "INSERT INTO marchents (email, phone, address) VALUES ($1, $2, $3) RETURNING *",
+        [args.email, args.phone, args.address]
+      );
+      return result.rows[0];
+    },
+    UpdateMarchent: async (_, args) => {
+      const result = await pool.query(
+        "UPDATE marchents SET email = COALESCE($1, email), phone = COALESCE($2, phone), address = COALESCE($3, address) WHERE id = $4 RETURNING *",
+        [args.email, args.phone, args.address, args.id]
+      );
+      return result.rows[0];
+    },
+  },
 };
 
 // The ApolloServer constructor requires two parameters: your schema
@@ -155,6 +225,21 @@ const server = new ApolloServer({
 //  3. prepares your app to handle incoming requests
 const { url } = await startStandaloneServer(server, {
   listen: { port: 4000 },
+  context: async ({ req }) => {
+    // Get the user ID from the authorization header (e.g., "Bearer <staff_id>")
+    const authHeader = req.headers.authorization || "";
+    const staffId = authHeader.replace("Bearer ", "");
+
+    if (staffId) {
+      // Fetch user from database
+      const result = await pool.query("SELECT * FROM staff WHERE id = $1", [
+        staffId,
+      ]);
+      return { user: result.rows[0] };
+    }
+
+    return { user: null };
+  },
 });
 
 console.log(`🚀  Server ready at: ${url}`);
