@@ -1,17 +1,35 @@
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
 import dotenv from "dotenv";
+import { get } from "http";
 import { Pool } from "pg";
 
 dotenv.config();
 
 const pool = new Pool({
-  user: process.env.PG_USER,
-  host: process.env.PG_HOST,
-  database: process.env.PG_DATABASE,
-  password: process.env.PG_PASSWORD,
-  port: 5432,
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
+
+async function getData() {
+  const client = await pool.connect();
+  try {
+    const { rows } = await client.query("SELECT * FROM staff");
+    return rows;
+  } finally {
+    client.release();
+  }
+}
+
+// const pool = new Pool({
+//   user: process.env.PG_USER,
+//   host: process.env.PG_HOST,
+//   database: process.env.PG_DATABASE,
+//   password: process.env.PG_PASSWORD,
+//   port: 5432,
+// });
 
 pool
   .connect()

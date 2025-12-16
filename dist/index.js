@@ -4,12 +4,27 @@ import dotenv from "dotenv";
 import { Pool } from "pg";
 dotenv.config();
 const pool = new Pool({
-    user: process.env.PG_USER,
-    host: process.env.PG_HOST,
-    database: process.env.PG_DATABASE,
-    password: process.env.PG_PASSWORD,
-    port: 5432,
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false,
+    },
 });
+// async function getData() {
+//   const client = await pool.connect();
+//   try {
+//     const { rows } = await client.query('SELECT * FROM posts');
+//     return rows;
+//   } finally {
+//     client.release();
+//   }
+// }
+// const pool = new Pool({
+//   user: process.env.PG_USER,
+//   host: process.env.PG_HOST,
+//   database: process.env.PG_DATABASE,
+//   password: process.env.PG_PASSWORD,
+//   port: 5432,
+// });
 pool
     .connect()
     .then(() => console.log("Connected to the database"))
@@ -146,7 +161,7 @@ const resolvers = {
             ]);
             return result.rows[0];
         },
-        AddStock: async (_, args, context) => {
+        UpdateStock: async (_, args, context) => {
             // Check if user is authenticated and has manager role
             if (!context.user) {
                 throw new Error("Authentication required");
@@ -162,11 +177,11 @@ const resolvers = {
             return result.rows[0];
         },
         AddSmallCategory: async (_, args) => {
-            const result = await pool.query("INSERT INTO small_categories (name, big_category_id) VALUES ($1 $2) RETURNING *", [args.name, args.big_category_id]);
+            const result = await pool.query("INSERT INTO small_categories (name, big_category_id) VALUES ($1, $2) RETURNING *", [args.name, args.big_category_id]);
             return result.rows[0];
         },
         AddMarchent: async (_, args) => {
-            const result = await pool.query("INSERT INTO marchents (email, phone, address) VALUES ($1 $2 $3) RETURNING *", [args.email, args.phone, args.address]);
+            const result = await pool.query("INSERT INTO marchents (email, phone, address) VALUES ($1, $2, $3) RETURNING *", [args.email, args.phone, args.address]);
             return result.rows[0];
         },
         UpdateMarchent: async (_, args) => {
