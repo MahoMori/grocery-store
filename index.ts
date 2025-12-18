@@ -106,11 +106,42 @@ const typeDefs = `
     product: Product
   }
 
+  type Order {
+    id: Int
+    customer_name: String
+    address: String
+    fulfillment_type: FullfillmentType
+    status: OrderStatus
+    created_at: String
+    order_items: [OrderItem]
+  }
+
+  type OrderItem {
+    id: Int
+    order_id: Int
+    product_id: Int
+    quantity: Int
+    product: Product
+    price_at_purchase: Int
+  }
+
+  enum FullfillmentType {
+    PICK UP
+    DELIVERY
+  }
+
+  enum OrderStatus {
+    PENDING
+    COMPLETED
+    CANCELLED
+  }
+
   type Query {
     products: [Product]
     staff: [Staff]
     marchents: [Marchent]
     cart(id: String!): Cart
+    order(id: Int!): Order
   }
 
   type Mutation {
@@ -151,6 +182,12 @@ const resolvers = {
     },
     cart: async (_, args) => {
       const result = await pool.query("SELECT * FROM carts WHERE id = $1", [
+        args.id,
+      ]);
+      return result.rows[0];
+    },
+    order: async (_, args) => {
+      const result = await pool.query("SELECT * FROM orders WHERE id = $1", [
         args.id,
       ]);
       return result.rows[0];
@@ -208,6 +245,23 @@ const resolvers = {
   // This is a resolver for the CartItem type to fetch its product details
   // ie. product information (Product)
   CartItem: {
+    product: async (parent) => {
+      const result = await pool.query("SELECT * FROM products WHERE id = $1", [
+        parent.product_id,
+      ]);
+      return result.rows[0];
+    },
+  },
+  Order: {
+    order_items: async (parent) => {
+      const result = await pool.query(
+        "SELECT * FROM order_items WHERE order_id = $1",
+        [parent.id]
+      );
+      return result.rows;
+    },
+  },
+  OrderItem: {
     product: async (parent) => {
       const result = await pool.query("SELECT * FROM products WHERE id = $1", [
         parent.product_id,

@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { Pool } from "pg";
 dotenv.config();
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL_TEST,
     ssl: {
         rejectUnauthorized: false,
     },
@@ -100,11 +100,41 @@ const typeDefs = `
     product: Product
   }
 
+  type Order {
+    id: Int
+    customer_name: String
+    address: String
+    fulfillment_type: FullfillmentType
+    status: OrderStatus
+    created_at: String
+    order_items: [OrderItem]
+  }
+
+  type OrderItem {
+    id: Int
+    order_id: Int
+    product_id: Int
+    quantity: Int
+    product: Product
+    price_at_purchase: Int
+  }
+
+  enum FulfillmentType {
+    PICK UP
+    DELIVERY
+  }
+
+  enum OrderStatus {
+    PENDING
+    COMPLETED
+    CANCELLED
+  }
+
   type Query {
     products: [Product]
     staff: [Staff]
     marchents: [Marchent]
-    cart: Cart
+    cart(id: String!): Cart
   }
 
   type Mutation {
@@ -116,6 +146,9 @@ const typeDefs = `
 
     AddMarchent(email: String!, phone: String!, address: String!): Marchent
     UpdateMarchent(id: Int!, email: String, phone: String, address: String): Marchent
+
+    AddItemToCart(cart_id: String!, product_id: Int!, quantity: Int!): Cart
+    RemoveItemFromCart(cart_id: String!, product_id: Int!): Cart
   }
 `;
 // Resolvers define how to fetch the types defined in your schema.
@@ -139,11 +172,11 @@ const resolvers = {
             const result = await pool.query("SELECT * FROM marchents");
             return result.rows;
         },
-        cart: async (parent) => {
+        cart: async (_, args) => {
             const result = await pool.query("SELECT * FROM carts WHERE id = $1", [
-                parent.id,
+                args.id,
             ]);
-            return result.rows;
+            return result.rows[0];
         },
     },
     Product: {
@@ -228,6 +261,35 @@ const resolvers = {
         UpdateMarchent: async (_, args) => {
             const result = await pool.query("UPDATE marchents SET email = COALESCE($1, email), phone = COALESCE($2, phone), address = COALESCE($3, address) WHERE id = $4 RETURNING *", [args.email, args.phone, args.address, args.id]);
             return result.rows[0];
+        },
+        AddItemToCart: async (_, args) => {
+            // Check if item already exists in cart
+            const existing = await pool.query("SELECT * FROM cart_items WHERE cart_id = $1 AND product_id = $2", [args.cart_id, args.product_id]);
+            if (existing.rows.length > 0) {
+                // Update existing item quantity (add to existing)
+                await pool.query("UPDATE cart_items SET quantity = quantity + $1 WHERE cart_id = $2 AND product_id = $3", [args.quantity, args.cart_id, args.product_id]);
+            }
+            else {
+                // Insert new item
+                await pool.query("INSERT INTO cart_items (cart_id, product_id, quantity) VALUES ($1, $2, $3)", [args.cart_id, args.product_id, args.quantity]);
+            }
+            // Update cart timestamp
+            await pool.query("UPDATE carts SET updated_at = CURRENT_TIMESTAMP WHERE id = $1", [args.cart_id]);
+            // Return the updated cart
+            const cart = await pool.query("SELECT * FROM carts WHERE id = $1", [
+                args.cart_id,
+            ]);
+            return cart.rows[0];
+        },
+        RemoveItemFromCart: async (_, args) => {
+            await pool.query("DELETE FROM cart_items WHERE cart_id = $1 AND product_id = $2", [args.cart_id, args.product_id]);
+            // Update cart timestamp
+            await pool.query("UPDATE carts SET updated_at = CURRENT_TIMESTAMP WHERE id = $1", [args.cart_id]);
+            // Return the updated cart
+            const cart = await pool.query("SELECT * FROM carts WHERE id = $1", [
+                args.cart_id,
+            ]);
+            return cart.rows[0];
         },
     },
 };
