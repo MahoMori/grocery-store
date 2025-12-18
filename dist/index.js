@@ -9,15 +9,16 @@ const pool = new Pool({
         rejectUnauthorized: false,
     },
 });
-// async function getData() {
-//   const client = await pool.connect();
-//   try {
-//     const { rows } = await client.query('SELECT * FROM posts');
-//     return rows;
-//   } finally {
-//     client.release();
-//   }
-// }
+async function getData() {
+    const client = await pool.connect();
+    try {
+        const { rows } = await client.query("SELECT * FROM staff");
+        return rows;
+    }
+    finally {
+        client.release();
+    }
+}
 // const pool = new Pool({
 //   user: process.env.PG_USER,
 //   host: process.env.PG_HOST,
@@ -84,10 +85,25 @@ const typeDefs = `
     address: String
   }
 
+  type Cart {
+    id: String
+    customer_id: String
+    updated_at: String
+    cart_items: [CartItem]
+  }
+
+  type CartItem {
+    id: Int
+    cart_id: String
+    product_id: Int
+    quantity: Int
+  }
+
   type Query {
     products: [Product]
     staff: [Staff]
     marchents: [Marchent]
+    cart: Cart
   }
 
   type Mutation {
@@ -120,6 +136,12 @@ const resolvers = {
         },
         marchents: async () => {
             const result = await pool.query("SELECT * FROM marchents");
+            return result.rows;
+        },
+        cart: async (parent) => {
+            const result = await pool.query("SELECT * FROM carts WHERE id = $1", [
+                parent.id,
+            ]);
             return result.rows;
         },
     },

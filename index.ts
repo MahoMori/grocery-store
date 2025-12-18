@@ -91,10 +91,26 @@ const typeDefs = `
     address: String
   }
 
+  type Cart {
+    id: String
+    customer_id: String
+    updated_at: String
+    cart_items: [CartItem]
+  }
+
+  type CartItem {
+    id: Int
+    cart_id: String
+    product_id: Int
+    quantity: Int
+    product: Product
+  }
+
   type Query {
     products: [Product]
     staff: [Staff]
     marchents: [Marchent]
+    cart: Cart
   }
 
   type Mutation {
@@ -128,6 +144,12 @@ const resolvers = {
     },
     marchents: async () => {
       const result = await pool.query("SELECT * FROM marchents");
+      return result.rows;
+    },
+    cart: async (parent) => {
+      const result = await pool.query("SELECT * FROM carts WHERE id = $1", [
+        parent.id,
+      ]);
       return result.rows;
     },
   },
@@ -166,6 +188,27 @@ const resolvers = {
         "SELECT * FROM attributes_keys WHERE id = $1",
         [parent.attribute_key_id]
       );
+      return result.rows[0];
+    },
+  },
+  // This is a resolver for the Cart type to fetch its cart_items
+  // ie. quantity
+  Cart: {
+    cart_items: async (parent) => {
+      const result = await pool.query(
+        "SELECT * FROM cart_items WHERE cart_id = $1",
+        [parent.id]
+      );
+      return result.rows;
+    },
+  },
+  // This is a resolver for the CartItem type to fetch its product details
+  // ie. product information (Product)
+  CartItem: {
+    product: async (parent) => {
+      const result = await pool.query("SELECT * FROM products WHERE id = $1", [
+        parent.product_id,
+      ]);
       return result.rows[0];
     },
   },
