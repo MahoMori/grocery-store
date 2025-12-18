@@ -3,6 +3,7 @@ import { startStandaloneServer } from "@apollo/server/standalone";
 import dotenv from "dotenv";
 import { get } from "http";
 import { Pool } from "pg";
+import { v4 as uuidv4 } from "uuid";
 
 dotenv.config();
 
@@ -126,7 +127,7 @@ const typeDefs = `
   }
 
   enum FullfillmentType {
-    PICK UP
+    PICK_UP
     DELIVERY
   }
 
@@ -154,8 +155,11 @@ const typeDefs = `
     AddMarchent(email: String!, phone: String!, address: String!): Marchent
     UpdateMarchent(id: Int!, email: String, phone: String, address: String): Marchent
 
-    AddItemToCart(cart_id: String!, product_id: Int!, quantity: Int!): Cart
+    AddItemToCart(cart_id: String, customer_id: String, product_id: Int!, quantity: Int!): Cart
     RemoveItemFromCart(cart_id: String!, product_id: Int!): Cart
+
+    PlaceOrder(cart_id: String!, customer_name: String!, address: String!, fulfillment_type: FullfillmentType!): Order
+    ChangeOrderStatus(order_id: Int!, status: OrderStatus!): Order
   }
 `;
 
@@ -328,35 +332,46 @@ const resolvers = {
       return result.rows[0];
     },
     AddItemToCart: async (_, args) => {
+      let cartId = args.cart_id;
+
+      // If no cart_id provided, create a new cart
+      if (!cartId) {
+        const newCart = await pool.query(
+          "INSERT INTO carts (id, customer_id, updated_at) VALUES ($1, $2, CURRENT_TIMESTAMP) RETURNING *",
+          [uuidv4(), args.customer_id]
+        );
+        cartId = newCart.rows[0].id;
+      }
+
       // Check if item already exists in cart
       const existing = await pool.query(
         "SELECT * FROM cart_items WHERE cart_id = $1 AND product_id = $2",
-        [args.cart_id, args.product_id]
+        [cartId, args.product_id]
       );
 
       if (existing.rows.length > 0) {
         // Update existing item quantity (add to existing)
         await pool.query(
           "UPDATE cart_items SET quantity = quantity + $1 WHERE cart_id = $2 AND product_id = $3",
-          [args.quantity, args.cart_id, args.product_id]
+          [args.quantity, cartId, args.product_id]
         );
       } else {
         // Insert new item
         await pool.query(
           "INSERT INTO cart_items (cart_id, product_id, quantity) VALUES ($1, $2, $3)",
-          [args.cart_id, args.product_id, args.quantity]
+          [cartId, args.product_id, args.quantity]
         );
       }
 
       // Update cart timestamp
       await pool.query(
         "UPDATE carts SET updated_at = CURRENT_TIMESTAMP WHERE id = $1",
-        [args.cart_id]
+        [cartId]
       );
 
       // Return the updated cart
       const cart = await pool.query("SELECT * FROM carts WHERE id = $1", [
-        args.cart_id,
+        cartId,
       ]);
       return cart.rows[0];
     },
@@ -377,6 +392,76 @@ const resolvers = {
         args.cart_id,
       ]);
       return cart.rows[0];
+    },
+    PlaceOrder: async (_, args) => {
+      // Fetch cart items
+      const cartItems = await pool.query(
+        "SELECT * FROM cart_items WHERE cart_id = $1",
+        [args.cart_id]
+      );
+      const items = cartItems.rows;
+
+      if (items.length === 0) {
+        throw new Error("Cart is empty");
+      }
+
+      // Validate stock availability for all items
+      for (const item of items) {
+        const productResult = await pool.query(
+          "SELECT num_of_stock, name FROM products WHERE id = $1",
+          [item.product_id]
+        );
+        const product = productResult.rows[0];
+
+        if (product.num_of_stock < item.quantity) {
+          throw new Error(
+            `Insufficient stock for ${product.name}. Available: ${product.num_of_stock}, Requested: ${item.quantity}`
+          );
+        }
+      }
+
+      // Create order
+      const orderResult = await pool.query(
+        "INSERT INTO orders (customer_name, address, fulfillment_type, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) RETURNING *",
+        [args.customer_name, args.address, args.fulfillment_type, "PENDING"]
+      );
+      const orderId = orderResult.rows[0].id;
+
+      // Create order items and reduce stock
+      for (const item of items) {
+        // Fetch product price
+        const productResult = await pool.query(
+          "SELECT selling_price FROM products WHERE id = $1",
+          [item.product_id]
+        );
+        const priceAtPurchase = productResult.rows[0].selling_price;
+
+        // Insert order item
+        await pool.query(
+          "INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase) VALUES ($1, $2, $3, $4)",
+          [orderId, item.product_id, item.quantity, priceAtPurchase]
+        );
+
+        // Reduce stock
+        await pool.query(
+          "UPDATE products SET num_of_stock = num_of_stock - $1 WHERE id = $2",
+          [item.quantity, item.product_id]
+        );
+      }
+
+      // Clear cart items
+      await pool.query("DELETE FROM cart_items WHERE cart_id = $1", [
+        args.cart_id,
+      ]);
+
+      return orderResult.rows[0];
+    },
+    ChangeOrderStatus: async (_, args) => {
+      const result = await pool.query(
+        "UPDATE orders SET status = $1 WHERE id = $2 RETURNING *",
+        [args.status, args.order_id]
+      );
+      return result.rows[0];
     },
   },
 };
