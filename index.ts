@@ -7,7 +7,7 @@ import { Pool } from "pg";
 dotenv.config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL_TEST,
   ssl: {
     rejectUnauthorized: false,
   },
@@ -110,7 +110,7 @@ const typeDefs = `
     products: [Product]
     staff: [Staff]
     marchents: [Marchent]
-    cart: Cart
+    cart(id: String!): Cart
   }
 
   type Mutation {
@@ -146,11 +146,11 @@ const resolvers = {
       const result = await pool.query("SELECT * FROM marchents");
       return result.rows;
     },
-    cart: async (parent) => {
+    cart: async (_, args) => {
       const result = await pool.query("SELECT * FROM carts WHERE id = $1", [
-        parent.id,
+        args.id,
       ]);
-      return result.rows;
+      return result.rows[0];
     },
   },
   Product: {
