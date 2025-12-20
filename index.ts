@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 dotenv.config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL_TEST,
+  connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false,
   },
