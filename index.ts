@@ -15,34 +15,11 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false,
   },
+  max: 1, // Reduce max connections for serverless
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
 
-async function getData() {
-  const client = await pool.connect();
-  try {
-    const { rows } = await client.query("SELECT * FROM staff");
-    return rows;
-  } finally {
-    client.release();
-  }
-}
-
-// const pool = new Pool({
-//   user: process.env.PG_USER,
-//   host: process.env.PG_HOST,
-//   database: process.env.PG_DATABASE,
-//   password: process.env.PG_PASSWORD,
-//   port: 5432,
-// });
-
-pool
-  .connect()
-  .then(() => console.log("Connected to the database"))
-  .catch((err) => console.error("Database connection error", err));
-
-// A schema is a collection of type definitions (hence "typeDefs")
-// that together define the "shape" of queries that are executed against
-// your data.
 const typeDefs = `
   type Product {
     id: Int
@@ -166,8 +143,6 @@ const typeDefs = `
   }
 `;
 
-// Resolvers define how to fetch the types defined in your schema.
-// This resolver retrieves books from the "books" array above.
 const resolvers = {
   Query: {
     products: async () => {
@@ -469,12 +444,10 @@ const resolvers = {
   },
 };
 
-// The ApolloServer constructor requires two parameters: your schema
-// definition and your set of resolvers.
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  introspection: true, // Enable for Apollo Studio
+  introspection: true,
   csrfPrevention: true,
   plugins: [ApolloServerPluginLandingPageLocalDefault({ embed: true })],
 });
