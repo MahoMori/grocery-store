@@ -1,5 +1,9 @@
 import { ApolloServer } from "@apollo/server";
-import { startStandaloneServer } from "@apollo/server/standalone";
+import { expressMiddleware } from "@apollo/server/express4";
+import { ApolloServerPluginLandingPageLocalDefault } from "@apollo/server/plugin/landingPage/default";
+import cors from "cors";
+import express from "express";
+import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import { Pool } from "pg";
 import { v4 as uuidv4 } from "uuid";
@@ -470,29 +474,48 @@ const resolvers = {
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  introspection: true, // Enable for Apollo Studio
+  csrfPrevention: true,
+  plugins: [ApolloServerPluginLandingPageLocalDefault({ embed: true })],
 });
 
-// Passing an ApolloServer instance to the `startStandaloneServer` function:
-//  1. creates an Express app
-//  2. installs your ApolloServer instance as middleware
-//  3. prepares your app to handle incoming requests
-const { url } = await startStandaloneServer(server, {
-  listen: { port: 4000 },
-  context: async ({ req }) => {
-    // Get the user ID from the authorization header (e.g., "Bearer <staff_id>")
-    const authHeader = req.headers.authorization || "";
-    const staffId = authHeader.replace("Bearer ", "");
+await server.start();
 
-    if (staffId) {
-      // Fetch user from database
-      const result = await pool.query("SELECT * FROM staff WHERE id = $1", [
-        staffId,
-      ]);
-      return { user: result.rows[0] };
-    }
+const app = express();
 
-    return { user: null };
-  },
-});
+// Enable CORS for all origins (Apollo Studio needs this)
+app.use(cors());
+app.use(bodyParser.json());
 
-console.log(`🚀  Server ready at: ${url}`);
+// Apply Apollo GraphQL middleware
+app.use(
+  "/",
+  expressMiddleware(server, {
+    context: async ({ req }) => {
+      // Get the user ID from the authorization header (e.g., "Bearer <staff_id>")
+      const authHeader = req.headers.authorization || "";
+      const staffId = authHeader.replace("Bearer ", "");
+
+      if (staffId) {
+        // Fetch user from database
+        const result = await pool.query("SELECT * FROM staff WHERE id = $1", [
+          staffId,
+        ]);
+        return { user: result.rows[0] };
+      }
+
+      return { user: null };
+    },
+  })
+);
+
+// For local development
+const PORT = process.env.PORT || 4000;
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server ready at http://localhost:${PORT}/`);
+  });
+}
+
+// Export for Vercel
+export default app;

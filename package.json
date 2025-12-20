@@ -12,8 +12,11 @@
     "start": "npm run compile && nodemon ./index.ts"
   },
   "dependencies": {
-    "@apollo/server": "^5.2.0",
+    "@apollo/server": "^4.12.2",
+    "@types/cors": "^2.8.19",
     "@types/pg": "^8.15.6",
+    "body-parser": "^2.2.1",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "graphql": "^16.12.0",
