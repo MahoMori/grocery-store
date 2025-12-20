@@ -1,7 +1,6 @@
 import { ApolloServer } from "@apollo/server";
-import { startStandaloneServer } from "@apollo/server/standalone";
+import { ApolloServerPluginLandingPageLocalDefault } from "@apollo/server/plugin/landingPage/default";
 import dotenv from "dotenv";
-import { startServerAndCreateNextHandler } from "@as-integrations/next";
 import { Pool } from "pg";
 import { v4 as uuidv4 } from "uuid";
 
@@ -471,24 +470,119 @@ const resolvers = {
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  introspection: true, // Enable introspection for Apollo Sandbox
+  introspection: true,
+  plugins: [
+    ApolloServerPluginLandingPageLocalDefault({
+      embed: true,
+      includeCookies: true,
+    }),
+  ],
 });
 
-// Export handler for Vercel using Next.js integration
-export default startServerAndCreateNextHandler(server, {
-  context: async (req, res) => {
-    // Get the user ID from the authorization header (e.g., "Bearer <staff_id>")
+// Initialize server
+let serverStarted = false;
+
+// Export handler for Vercel
+export default async function handler(req: any, res: any) {
+  // Set CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return;
+  }
+
+  // Start server once
+  if (!serverStarted) {
+    await server.start();
+    serverStarted = true;
+  }
+
+  // Handle landing page for browser visits
+  if (req.method === "GET" && !req.query?.query) {
+    const landingHTML = `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width,initial-scale=1" />
+          <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>" />
+          <title>Grocery Store GraphQL</title>
+        </head>
+        <body style="margin: 0; overflow: hidden;">
+          <div id="embedded-sandbox"></div>
+          <script src="https://embeddable-sandbox.cdn.apollographql.com/_latest/embeddable-sandbox.umd.production.min.js"></script>
+          <script>
+            new window.EmbeddedSandbox({
+              target: '#embedded-sandbox',
+              initialEndpoint: 'https://${
+                req.headers.host || "localhost:4000"
+              }',
+              includeCookies: true,
+            });
+          </script>
+        </body>
+      </html>
+    `;
+    res.setHeader("Content-Type", "text/html");
+    res.status(200).send(landingHTML);
+    return;
+  }
+
+  try {
+    let query, variables, operationName;
+
+    // Parse GraphQL request
+    if (req.method === "GET") {
+      query = req.query?.query;
+      variables = req.query?.variables
+        ? JSON.parse(req.query.variables)
+        : undefined;
+      operationName = req.query?.operationName;
+    } else if (req.body) {
+      query = req.body.query;
+      variables = req.body.variables;
+      operationName = req.body.operationName;
+    }
+
+    // Get auth context
     const authHeader = req.headers.authorization || "";
     const staffId = authHeader.replace("Bearer ", "");
 
+    let user = null;
     if (staffId) {
-      // Fetch user from database
       const result = await pool.query("SELECT * FROM staff WHERE id = $1", [
         staffId,
       ]);
-      return { user: result.rows[0] };
+      user = result.rows[0];
     }
 
-    return { user: null };
-  },
-});
+    // Execute GraphQL operation
+    const result = await server.executeOperation(
+      { query, variables, operationName },
+      { contextValue: { user } }
+    );
+
+    // Send response
+    res.setHeader("Content-Type", "application/json");
+    if (result.body.kind === "single") {
+      res.status(200).json(result.body.singleResult);
+    } else {
+      res
+        .status(200)
+        .json({ errors: [{ message: "Incremental delivery not supported" }] });
+    }
+  } catch (error) {
+    console.error("GraphQL Error:", error);
+    res.status(500).json({
+      errors: [
+        {
+          message:
+            error instanceof Error ? error.message : "Internal server error",
+        },
+      ],
+    });
+  }
+}
