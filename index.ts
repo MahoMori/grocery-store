@@ -487,6 +487,9 @@ const PORT = process.env.PORT || 4000;
 if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => {
     console.log(`🚀 Server ready at http://localhost:${PORT}/`);
+    console.log(
+      `🚀 Alternatively, access https://studio.apollographql.com/sandbox/explorer?endpoint=http://localhost:${PORT}/`
+    );
   });
 }
 

@@ -9,7 +9,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile": "tsc",
-    "start": "npm run compile && nodemon ./index.ts"
+    "start": "node --loader ts-node/esm index.ts",
+    "dev": "nodemon --exec node --loader ts-node/esm index.ts"
   },
   "dependencies": {
     "@apollo/server": "^4.12.2",

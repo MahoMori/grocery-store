@@ -34,7 +34,7 @@ https://your-project-name.vercel.app
 Use your deployed URL with Apollo Studio:
 
 ```
-https://studio.apollographql.com/sandbox/explorer?endpoint=https://your-project-name.vercel.app
+https://studio.apollographql.com/sandbox/explorer?endpoint=https://grocery-store-virid.vercel.app
 ```
 
 ## Local Development
