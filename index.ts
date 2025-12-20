@@ -1,7 +1,7 @@
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
 import dotenv from "dotenv";
-import { get } from "http";
+import { startServerAndCreateNextHandler } from "@as-integrations/next";
 import { Pool } from "pg";
 import { v4 as uuidv4 } from "uuid";
 
@@ -495,5 +495,7 @@ const { url } = await startStandaloneServer(server, {
     return { user: null };
   },
 });
+
+export default startServerAndCreateNextHandler(server);
 
 console.log(`🚀  Server ready at: ${url}`);
