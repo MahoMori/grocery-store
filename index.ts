@@ -471,15 +471,12 @@ const resolvers = {
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  introspection: true, // Enable introspection for Apollo Sandbox
 });
 
-// Passing an ApolloServer instance to the `startStandaloneServer` function:
-//  1. creates an Express app
-//  2. installs your ApolloServer instance as middleware
-//  3. prepares your app to handle incoming requests
-const { url } = await startStandaloneServer(server, {
-  listen: { port: 4000 },
-  context: async ({ req }) => {
+// Export handler for Vercel using Next.js integration
+export default startServerAndCreateNextHandler(server, {
+  context: async (req, res) => {
     // Get the user ID from the authorization header (e.g., "Bearer <staff_id>")
     const authHeader = req.headers.authorization || "";
     const staffId = authHeader.replace("Bearer ", "");
@@ -495,7 +492,3 @@ const { url } = await startStandaloneServer(server, {
     return { user: null };
   },
 });
-
-export default startServerAndCreateNextHandler(server);
-
-console.log(`🚀  Server ready at: ${url}`);
