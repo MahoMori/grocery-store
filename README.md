@@ -1,52 +1,69 @@
-# Grocery Store GraphQL API
+# 🛒 Grocery Store GraphQL API
 
-## Deployment to Vercel
+A full-stack GraphQL API built to learn **GraphQL** and **SQL** database design. This project simulates a grocery store management system with product catalogs, shopping carts, order processing, and merchant management.
 
-### Prerequisites
+## 📚 Purpose
 
-- Vercel CLI installed: `npm i -g vercel`
-- PostgreSQL database (configured)
+This project was created as a learning exercise to:
 
-### Environment Variables
+- Gain hands-on experience with **GraphQL** schema design and resolvers
+- Practice **SQL** database modeling and complex queries with PostgreSQL
+- Understand the relationship between GraphQL types and relational database tables
 
-Set these in Vercel:
+## 🚀 Tech Stack
 
-```bash
-vercel env add DATABASE_URL production
-```
+- **GraphQL** - Apollo Server for API implementation
+- **PostgreSQL** - Relational database for data persistence
+- **TypeScript** - Type-safe development
+- **Node.js + Express** - Server runtime and middleware
 
-### Deploy
+## ✨ Features
 
-```bash
-vercel --prod
-```
+### Core Functionality
 
-### Access Your API
+- **Product Management**: CRUD operations for products with categories and attributes
+- **Category System**: Hierarchical categorization (Big Categories → Small Categories)
+- **Shopping Cart**: Add/remove items, persistent cart management
+- **Order Processing**: Place orders with pickup/delivery options
+- **Merchant Management**: Track merchant information and their products
+- **Staff Management**: Staff directory queries
 
-After deployment, your API will be available at:
+### GraphQL Operations
 
-```
-https://your-project-name.vercel.app
-```
+#### Queries
 
-### Apollo Studio Sandbox
+- `products` - Retrieve all products with nested category and merchant data
+- `cart(id)` - Get cart with items and product details
+- `order(id)` - Fetch order information with items
+- `staff` - List all staff members
+- `marchents` - List all merchants
 
-Use your deployed URL with Apollo Studio:
+#### Mutations
+
+- Product operations: `AddProduct`, `UpdateStock`
+- Category management: `AddBigCategory`, `AddSmallCategory`
+- Merchant operations: `AddMarchent`, `UpdateMarchent`
+- Cart operations: `AddItemToCart`, `RemoveItemFromCart`
+- Order management: `PlaceOrder`, `ChangeOrderStatus`
+
+## 🗄️ Database Schema
+
+The PostgreSQL database includes the following key tables:
+
+- `products` - Product inventory with pricing and stock
+- `big_category` / `small_category` - Hierarchical product categorization
+- `product_attributes` - Flexible product attributes system
+- `marchents` - Merchant/vendor information
+- `carts` / `cart_items` - Shopping cart management
+- `orders` / `order_items` - Order tracking and history
+- `staff` - Staff directory
+
+The database diagram can be viewed [here](https://dbdiagram.io/d/Grocery-Store-Management-System-6931e830d6676488baa636d2).
+
+## 🚀 Demo on Apollo Studio
+
+You can test GraphQL operations on Apollo Studio Sandbox:
 
 ```
 https://studio.apollographql.com/sandbox/explorer?endpoint=https://grocery-store-virid.vercel.app
 ```
-
-## Local Development
-
-```bash
-npm install
-npm start
-```
-
-## Features
-
-- GraphQL API for grocery store management
-- Product, Staff, Cart, and Merchant management
-- PostgreSQL database integration
-- Authentication support
