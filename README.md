@@ -1,6 +1,6 @@
 # 🛒 Grocery Store GraphQL API
 
-A full-stack GraphQL API built to learn **GraphQL** and **SQL** database design. This project simulates a grocery store management system with product catalogs, shopping carts, order processing, and merchant management.
+A GraphQL API built to learn **GraphQL** and **SQL** database design. This project simulates a grocery store management system with product catalogs, shopping carts, order processing, and merchant management.
 
 ## 📚 Purpose
 
@@ -60,10 +60,14 @@ The PostgreSQL database includes the following key tables:
 
 The database diagram can be viewed [here](https://dbdiagram.io/d/Grocery-Store-Management-System-6931e830d6676488baa636d2).
 
-## 🚀 Demo on Apollo Studio
+## ✨ Demo on Apollo Studio
 
 You can test GraphQL operations on Apollo Studio Sandbox:
 
 ```
 https://studio.apollographql.com/sandbox/explorer?endpoint=https://grocery-store-virid.vercel.app
 ```
+
+## 📄 Document
+
+You can check out my learnings in [this document](https://docs.google.com/document/d/1271rfH-eKHjMUoXqQHjNZAqHBS_WIwmZCwdTxVsHTg4/edit?usp=sharing).
