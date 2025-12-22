@@ -213,8 +213,6 @@ const resolvers = {
       return result.rows[0];
     },
   },
-  // This is a resolver for the Cart type to fetch its cart_items
-  // ie. quantity
   Cart: {
     cart_items: async (parent) => {
       const result = await pool.query(
@@ -224,8 +222,6 @@ const resolvers = {
       return result.rows;
     },
   },
-  // This is a resolver for the CartItem type to fetch its product details
-  // ie. product information (Product)
   CartItem: {
     product: async (parent) => {
       const result = await pool.query("SELECT * FROM products WHERE id = $1", [
@@ -456,7 +452,7 @@ await server.start();
 
 const app = express();
 
-// Enable CORS for all origins (Apollo Studio needs this)
+// Enable CORS for all origins
 app.use(cors());
 app.use(bodyParser.json());
 
